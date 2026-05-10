@@ -1,0 +1,72 @@
+/* HomePage styles */
+/* ========== HomePage.css ========== */
+.home-page {
+  --bg-primary: #0f1119;
+  --bg-card: #1a1d2b;
+  --text-primary: #e4e6f0;
+  --text-secondary: #a0a4b8;
+  --accent: #00c49a;
+  --border: #2a2e3f;
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--bg-primary);
+  font-family: 'Inter', system-ui, sans-serif;
+  padding: 2rem;
+  color: var(--text-primary);
+}
+
+.home-page h2 {
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin-bottom: 3rem;
+  letter-spacing: -0.5px;
+  color: var(--text-primary);
+}
+
+.home-page .button-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 900px;
+}
+
+.home-page .button-grid button {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 2rem 1.5rem;
+  border-radius: 16px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.home-page .button-grid button:hover {
+  background: var(--accent);
+  color: #0f1119;
+  border-color: var(--accent);
+  transform: translateY(-5px);
+  box-shadow: 0 12px 32px rgba(0, 196, 154, 0.25);
+}
+
+.home-page .button-grid button:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 600px) {
+  .home-page .button-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,178 @@
+/* AnalysisDecisionPage styles */
+/* ========== AnalysisDecisionPage.css ========== */
+.analysis-decision-page {
+  --bg-primary: #0f1119;
+  --bg-card: #1a1d2b;
+  --text-primary: #e4e6f0;
+  --text-secondary: #a0a4b8;
+  --accent: #00c49a;
+  --danger: #ff4d6a;
+  --border: #2a2e3f;
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+
+  padding: 2rem;
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--bg-primary);
+  min-height: 100vh;
+}
+
+.analysis-decision-page h2,
+.analysis-decision-page h3 {
+  font-weight: 600;
+  margin-bottom: 1.25rem;
+  color: var(--text-primary);
+}
+
+.analysis-decision-page h2 {
+  font-size: 2rem;
+  letter-spacing: -0.5px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.75rem;
+}
+
+/* Filters */
+.analysis-decision-page .filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  background: var(--bg-card);
+  padding: 1.25rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  box-shadow: var(--shadow);
+}
+
+.analysis-decision-page .filters select,
+.analysis-decision-page .filters input[type="date"] {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border 0.2s;
+}
+
+.analysis-decision-page .filters select:focus,
+.analysis-decision-page .filters input[type="date"]:focus {
+  border-color: var(--accent);
+}
+
+.analysis-decision-page .filters label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.loading-text {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Dashboard sections */
+.analysis-decision-page .dashboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.analysis-decision-page .dashboard section {
+  background: var(--bg-card);
+  border-radius: 14px;
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s;
+}
+
+.analysis-decision-page .dashboard section:hover {
+  transform: translateY(-3px);
+}
+
+.analysis-decision-page .dashboard h3 {
+  font-size: 1.15rem;
+  margin-bottom: 1rem;
+  color: var(--accent);
+}
+
+.analysis-decision-page .dashboard h4 {
+  font-size: 1rem;
+  margin: 0.8rem 0 0.4rem;
+  color: var(--text-secondary);
+}
+
+.analysis-decision-page .dashboard ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.analysis-decision-page .dashboard li {
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.analysis-decision-page .dashboard li:last-child {
+  border-bottom: none;
+}
+
+/* Flag colors */
+.analysis-decision-page .red-flag {
+  color: var(--danger) !important;
+  font-weight: 600;
+}
+
+.analysis-decision-page .green-flag {
+  color: var(--accent) !important;
+  font-weight: 600;
+}
+
+/* Table */
+.analysis-decision-page table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.analysis-decision-page th,
+.analysis-decision-page td {
+  padding: 0.7rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.analysis-decision-page th {
+  color: var(--text-secondary);
+  font-weight: 600;
+  border-bottom: 2px solid var(--border);
+}
+
+/* Suggestion card */
+.analysis-decision-page .suggestion {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, #1a1d2b 0%, #21263a 100%);
+  border-left: 4px solid var(--accent);
+}
+
+.analysis-decision-page .suggestion p {
+  font-size: 1.1rem;
+  font-style: italic;
+  color: var(--accent);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .analysis-decision-page {
+    padding: 1rem;
+  }
+  .analysis-decision-page .dashboard {
+    grid-template-columns: 1fr;
+  }
+}

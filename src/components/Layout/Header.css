@@ -1,0 +1,83 @@
+/* ========== Header.css ========== */
+.header {
+  --bg-primary: #0f1119;
+  --bg-card: #1a1d2b;
+  --text-primary: #e4e6f0;
+  --accent: #00c49a;
+  --border: #2a2e3f;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(26, 29, 43, 0.9);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+  padding: 1rem 2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  font-family: 'Inter', system-ui, sans-serif;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  min-height: 60px; /* ensures consistent height */
+}
+
+/* Left side: logo */
+.header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+  white-space: nowrap;
+}
+
+/* Right side: nav + actions grouped together */
+.header .header-right {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.header nav {
+  display: flex;
+  align-items: center;
+}
+
+.header nav a {
+  color: #a0a4b8;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.95rem;
+  transition: color 0.2s, transform 0.2s;
+}
+
+.header nav a:hover {
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
+/* Container for the notification bell */
+.header .header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Small screens: keep horizontal, reduce padding */
+@media (max-width: 600px) {
+  .header {
+    padding: 0.75rem 1rem;
+  }
+
+  .header h1 {
+    font-size: 1.25rem;
+  }
+
+  .header .header-right {
+    gap: 1rem;
+  }
+
+  .header nav a {
+    font-size: 0.85rem;
+  }
+}
