@@ -5,8 +5,16 @@ import FOREX_PAIRS from "../../utils/pairs";
 import "./RecordTradePage.css";
 
 const RecordTradePage = () => {
-  const { strategies, pairs, dailyBias, setDailyBias, refresh } =
-    useContext(DataContext);
+  const { strategies, pairs, dailyBias, setDailyBias, refresh } = useContext(DataContext);
+
+  // sort strategies: Live first, then Forward Test, then Demo, then by name
+  const tradeTypeOrder = { "Live": 0, "Forward Test": 1, "Demo": 2 };
+  const sortedStrategies = [...(strategies || [])].sort((a, b) => {
+    const orderA = tradeTypeOrder[a.currentTradeType] ?? 3;
+    const orderB = tradeTypeOrder[b.currentTradeType] ?? 3;
+    if (orderA !== orderB) return orderA - orderB;
+    return (a.name || "").localeCompare(b.name || "");
+  });
 
   const [selectedStrategy, setSelectedStrategy] = useState(null);
   const [form, setForm] = useState({
@@ -22,17 +30,21 @@ const RecordTradePage = () => {
   const [imageFile, setImageFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Reset pauseOverride when strategy changes
-  useEffect(() => {
-    setForm((prev) => ({ ...prev, pauseOverride: false }));
-  }, [selectedStrategy]);
-
-  const strategyList = strategies || [];
-  const selectedStrategyData = strategyList.find(
+  const selectedStrategyData = sortedStrategies.find(
     (s) => s._id === selectedStrategy
   );
 
-  // Use pairs from context if available, otherwise fall back to utility list
+  // Set tradeType automatically when strategy changes
+  useEffect(() => {
+    if (selectedStrategyData) {
+      setForm((prev) => ({
+        ...prev,
+        tradeType: selectedStrategyData.currentTradeType,
+        pauseOverride: false,
+      }));
+    }
+  }, [selectedStrategyData]);
+
   const pairOptions = Array.isArray(pairs) && pairs.length > 0 ? pairs : FOREX_PAIRS;
 
   const handleSelect = (id) => {
@@ -47,17 +59,9 @@ const RecordTradePage = () => {
     }));
   };
 
-  const handleDateChange = (e) => {
-    setForm((prev) => ({ ...prev, date: e.target.value }));
-  };
-
-  const handleTimeChange = (e) => {
-    setForm((prev) => ({ ...prev, time: e.target.value }));
-  };
-
-  const handleFileChange = (e) => {
-    setImageFile(e.target.files[0]);
-  };
+  const handleDateChange = (e) => setForm((prev) => ({ ...prev, date: e.target.value }));
+  const handleTimeChange = (e) => setForm((prev) => ({ ...prev, time: e.target.value }));
+  const handleFileChange = (e) => setImageFile(e.target.files[0] || null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -77,7 +81,7 @@ const RecordTradePage = () => {
         result: form.result,
         date: form.date,
         time: form.time,
-        tradeType: form.tradeType,
+        tradeType: form.tradeType,   // already set from strategy
         pauseOverride: form.pauseOverride,
         followedBias: form.followedBias,
         note: form.note,
@@ -86,7 +90,6 @@ const RecordTradePage = () => {
 
       await api.recordTrade(tradeData);
       alert("Trade recorded successfully");
-
       await refresh();
 
       setForm({
@@ -108,7 +111,6 @@ const RecordTradePage = () => {
     }
   };
 
-  // Check if selected strategy has 3 losses → show pause override checkbox
   const showPauseOverride =
     selectedStrategyData && selectedStrategyData.consecutiveLosses >= 3;
 
@@ -118,13 +120,11 @@ const RecordTradePage = () => {
     <div className="record-trade-page">
       <h2>Record Trade & Setup</h2>
 
-      {/* Daily Bias Input */}
+      {/* Daily Bias */}
       <div className="daily-bias-section">
         <h3>Daily Bias</h3>
         {dailyBias ? (
-          <p>
-            Today's bias: <strong>{dailyBias}</strong>
-          </p>
+          <p>Today's bias: <strong>{dailyBias}</strong></p>
         ) : (
           <div>
             <select
@@ -133,14 +133,10 @@ const RecordTradePage = () => {
             >
               <option value="">-- Set Today's Bias --</option>
               {biasOptions.map((b) => (
-                <option key={b} value={b}>
-                  {b}
-                </option>
+                <option key={b} value={b}>{b}</option>
               ))}
             </select>
-            <button onClick={() => api.setDailyBias(dailyBias)}>
-              Save Bias
-            </button>
+            <button onClick={() => api.setDailyBias(dailyBias)}>Save Bias</button>
           </div>
         )}
       </div>
@@ -149,22 +145,19 @@ const RecordTradePage = () => {
       <div className="strategy-carousel">
         <h3>Select Strategy</h3>
         <div className="carousel">
-          {strategyList.map((strategy) => (
+          {sortedStrategies.map((strategy) => (
             <div
               key={strategy._id}
-              className={`strategy-card ${
-                selectedStrategy === strategy._id ? "selected" : ""
-              }`}
+              className={`strategy-card ${selectedStrategy === strategy._id ? "selected" : ""}`}
             >
               <img src={strategy.image} alt={strategy.name} />
               <h4>{strategy.name}</h4>
               <p>Type: {strategy.type}</p>
+              <p>Trade Type: <strong>{strategy.currentTradeType}</strong></p>   {/* show current */}
               {strategy.consecutiveLosses >= 3 && (
                 <span className="flag red">⚠ Paused</span>
               )}
-              <button onClick={() => handleSelect(strategy._id)}>
-                Select
-              </button>
+              <button onClick={() => handleSelect(strategy._id)}>Select</button>
             </div>
           ))}
         </div>
@@ -177,17 +170,10 @@ const RecordTradePage = () => {
 
           <div className="form-group">
             <label>Pair</label>
-            <select
-              name="pair"
-              value={form.pair}
-              onChange={handleChange}
-              required
-            >
+            <select name="pair" value={form.pair} onChange={handleChange} required>
               <option value="">-- Select Pair --</option>
               {pairOptions.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
+                <option key={p} value={p}>{p}</option>
               ))}
             </select>
           </div>
@@ -202,38 +188,26 @@ const RecordTradePage = () => {
 
           <div className="form-group">
             <label>Date</label>
-            <input
-              type="date"
-              name="date"
-              value={form.date}
-              onChange={handleDateChange}
-            />
+            <input type="date" name="date" value={form.date} onChange={handleDateChange} />
           </div>
 
           <div className="form-group">
             <label>Time (GMT)</label>
+            <input type="time" name="time" value={form.time} onChange={handleTimeChange} />
+          </div>
+
+          {/* Trade Type now auto‑filled */}
+          <div className="form-group">
+            <label>Trade Type</label>
             <input
-              type="time"
-              name="time"
-              value={form.time}
-              onChange={handleTimeChange}
+              type="text"
+              value={form.tradeType}
+              readOnly
+              disabled
+              className="readonly-field"
             />
           </div>
 
-          <div className="form-group">
-            <label>Trade Type</label>
-            <select
-              name="tradeType"
-              value={form.tradeType}
-              onChange={handleChange}
-            >
-              <option value="Live">Live</option>
-              <option value="Demo">Demo</option>
-              <option value="Forward Test">Forward Test</option>
-            </select>
-          </div>
-
-          {/* Pause Override */}
           {showPauseOverride && (
             <div className="form-group checkbox">
               <label>
@@ -250,11 +224,7 @@ const RecordTradePage = () => {
 
           <div className="form-group">
             <label>Did trade follow daily bias?</label>
-            <select
-              name="followedBias"
-              value={form.followedBias}
-              onChange={handleChange}
-            >
+            <select name="followedBias" value={form.followedBias} onChange={handleChange}>
               <option value="Yes">Yes</option>
               <option value="No">No</option>
             </select>

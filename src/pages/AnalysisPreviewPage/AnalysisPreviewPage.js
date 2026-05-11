@@ -6,7 +6,7 @@ import "./AnalysisPreviewPage.css";
 const AnalysisPreviewPage = () => {
   const { strategies } = useContext(DataContext);
   const [selectedStrategy, setSelectedStrategy] = useState("");
-  const [filter, setFilter] = useState("last10"); // 'last3','last7','last10','last20','last50','last100','3d','7d','30d','60d','365d'
+  const [filter, setFilter] = useState("last10");
   const [previewData, setPreviewData] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -35,19 +35,18 @@ const AnalysisPreviewPage = () => {
     <div className="analysis-preview-page">
       <h2>Analysis Preview</h2>
 
-      {/* Streak Alerts */}
       {strategies.map((s) => {
         if (s.consecutiveLosses >= 3) {
           return (
             <div key={s._id} className="alert red">
-              ⚠️ {s.name}: {s.consecutiveLosses} CONSECUTIVE LOSSES (PAUSED UNTIL 3 DEMO WINS)
+              ⚠️ {s.name}: {s.consecutiveLosses} CONSECUTIVE LOSSES (PAUSED)
             </div>
           );
         }
         if (s.consecutiveWins >= 2) {
           return (
             <div key={s._id} className="alert green">
-              ✅ {s.name}: {s.consecutiveWins} CONSECUTIVE WINS (ACTIVE)
+              ✅ {s.name}: {s.consecutiveWins} CONSECUTIVE WINS
             </div>
           );
         }
@@ -87,6 +86,7 @@ const AnalysisPreviewPage = () => {
           <p>Result sequence: {previewData.resultString}</p>
           <p>Consecutive Win/Loss: {previewData.streak}</p>
           <p>Status: {previewData.active ? "Active" : "Not Active"}</p>
+          <p>Trade Type: <strong>{previewData.tradeType}</strong></p>   {/* NEW */}
 
           <h4>Expected vs Actual</h4>
           <table>

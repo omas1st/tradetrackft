@@ -3,11 +3,10 @@ import { DataContext } from "../../context/DataContext";
 import "./NotificationBanner.css";
 
 const NotificationBanner = () => {
-  const { notifications } = useContext(DataContext);
+  const { notifications, markNotificationAsRead } = useContext(DataContext);
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -20,7 +19,13 @@ const NotificationBanner = () => {
 
   if (!notifications || notifications.length === 0) return null;
 
-  const unreadCount = notifications.length; // or filter by a "read" flag if available
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const handleNotificationClick = (id) => {
+    markNotificationAsRead(id);
+    // optionally close dropdown after a click
+    // setOpen(false);
+  };
 
   return (
     <div className="notification-banner" ref={dropdownRef}>
@@ -29,7 +34,6 @@ const NotificationBanner = () => {
         onClick={() => setOpen((prev) => !prev)}
         aria-label="Notifications"
       >
-        {/* Simple bell SVG icon (you can replace with any icon library) */}
         <svg
           width="22"
           height="22"
@@ -55,7 +59,11 @@ const NotificationBanner = () => {
           </div>
           <ul className="notification-list">
             {notifications.map((n) => (
-              <li key={n.id} className={`notification-item ${n.type}`}>
+              <li
+                key={n.id}
+                className={`notification-item ${n.type} ${n.read ? "read" : ""}`}
+                onClick={() => handleNotificationClick(n.id)}
+              >
                 <div className={`notification-dot ${n.type}`} />
                 <p className="notification-message">{n.message}</p>
               </li>

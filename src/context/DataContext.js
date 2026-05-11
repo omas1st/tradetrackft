@@ -37,6 +37,23 @@ export const DataProvider = ({ children }) => {
     }
   }, []);
 
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const { data } = await api.getNotifications();
+      // Always merge read status from existing state (keep already read flags)
+      setNotifications((prev) => {
+        const prevReadMap = {};
+        prev.forEach((n) => { prevReadMap[n.id] = n.read; });
+        return data.map((n) => ({
+          ...n,
+          read: prevReadMap[n.id] !== undefined ? prevReadMap[n.id] : n.read || false,
+        }));
+      });
+    } catch (error) {
+      console.error("Failed to fetch notifications", error);
+    }
+  }, []);
+
   const updateStrategyInState = (updated) => {
     setStrategies((prev) =>
       prev.map((s) => (s._id === updated._id ? updated : s))
@@ -51,58 +68,35 @@ export const DataProvider = ({ children }) => {
     setStrategies((prev) => prev.filter((s) => s._id !== id));
   };
 
+  const markNotificationAsRead = (id) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    );
+  };
+
   // Load initial data
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([fetchStrategies(), fetchPairs(), fetchDailyBias()]);
+      await Promise.all([
+        fetchStrategies(),
+        fetchPairs(),
+        fetchDailyBias(),
+        fetchNotifications(),
+      ]);
       setLoading(false);
     };
     loadData();
-  }, [fetchStrategies, fetchPairs, fetchDailyBias]);
-
-  // Derive notifications from strategies (simplified)
-  useEffect(() => {
-    const notifs = [];
-    strategies.forEach((s) => {
-      if (s.consecutiveLosses >= 3) {
-        notifs.push({
-          id: `loss-${s._id}`,
-          type: "danger",
-          message: `Strategy ${s.name}: 3 losses in a row. Paused until 3 demo wins.`,
-        });
-      }
-      if (s.consecutiveWins >= 3) {
-        notifs.push({
-          id: `win-${s._id}`,
-          type: "success",
-          message: `Strategy ${s.name}: 3 wins in a row. Remove pause if previously paused.`,
-        });
-      }
-      if (s.lastTradeDate) {
-        const daysSince = (new Date() - new Date(s.lastTradeDate)) / 86400000;
-        if (daysSince > 30) {
-          notifs.push({
-            id: `inactive-${s._id}`,
-            type: "warning",
-            message: `Strategy ${s.name}: No trades recorded in 30 days. Review or archive.`,
-          });
-        }
-      }
-    });
-    if (!dailyBias) {
-      notifs.push({
-        id: "bias",
-        type: "info",
-        message: "Please enter today's daily bias before recording trades.",
-      });
-    }
-    setNotifications(notifs);
-  }, [strategies, dailyBias]);
+  }, [fetchStrategies, fetchPairs, fetchDailyBias, fetchNotifications]);
 
   const refresh = async () => {
     setLoading(true);
-    await Promise.all([fetchStrategies(), fetchPairs(), fetchDailyBias()]);
+    await Promise.all([
+      fetchStrategies(),
+      fetchPairs(),
+      fetchDailyBias(),
+      fetchNotifications(),
+    ]);
     setLoading(false);
   };
 
@@ -121,6 +115,7 @@ export const DataProvider = ({ children }) => {
         updateStrategyInState,
         addStrategyInState,
         removeStrategyFromState,
+        markNotificationAsRead,
         refresh,
       }}
     >

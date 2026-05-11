@@ -5,19 +5,27 @@ import "./PastTradesPage.css";
 
 const PastTradesPage = () => {
   const { strategies } = useContext(DataContext);
-  const [view, setView] = useState("folders"); // "folders" or "compare"
+  const [view, setView] = useState("folders");
   const [strategyTrades, setStrategyTrades] = useState({});
   const [compareIds, setCompareIds] = useState([]);
   const [compareData, setCompareData] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Fetch trades for each strategy when in folders view
+  // sort strategies by trade type (Live > Forward Test > Demo) then by name
+  const tradeTypeOrder = { "Live": 0, "Forward Test": 1, "Demo": 2 };
+  const sortedStrategies = [...(strategies || [])].sort((a, b) => {
+    const aOrder = tradeTypeOrder[a.currentTradeType] ?? 3;
+    const bOrder = tradeTypeOrder[b.currentTradeType] ?? 3;
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    return (a.name || "").localeCompare(b.name || "");
+  });
+
   useEffect(() => {
     if (view !== "folders") return;
     const fetchAllTrades = async () => {
       setLoading(true);
       const tradesMap = {};
-      for (const s of strategies) {
+      for (const s of sortedStrategies) {
         try {
           const { data } = await api.getTrades({ strategyId: s._id });
           tradesMap[s._id] = data;
@@ -29,9 +37,8 @@ const PastTradesPage = () => {
       setLoading(false);
     };
     fetchAllTrades();
-  }, [strategies, view]);
+  }, [sortedStrategies, view]);
 
-  // Compare selected strategies
   const handleCompare = async () => {
     if (compareIds.length < 2) return alert("Select at least 2 strategies to compare");
     setLoading(true);
@@ -71,23 +78,24 @@ const PastTradesPage = () => {
 
       {view === "folders" && (
         <div className="folders">
-          {Object.entries(strategyTrades).map(([strategyId, trades]) => {
-            const strat = strategies.find((s) => s._id === strategyId);
-            if (!strat) return null;
+          {sortedStrategies.map((strat) => {
+            const trades = strategyTrades[strat._id] || [];
             return (
-              <div key={strategyId} className="folder">
-                <h3>{strat.name}</h3>
-                <div className="image-grid">
+              <div key={strat._id} className="folder">
+                <h3>
+                  {strat.name} <span className="trade-type-badge">{strat.currentTradeType}</span>
+                </h3>
+                <div className="image-scroll-row">
                   {trades
                     .filter((t) => t.image)
                     .map((t, idx) => (
-                      <img key={idx} src={t.image} alt="trade setup" />
+                      <img key={idx} src={t.image} alt="trade setup" className="scroll-image" />
                     ))}
                 </div>
                 <div className="actions">
-                  <a href={`/api/trades/export/csv?strategyId=${strategyId}`}>Export CSV</a>
-                  <a href={`/api/trades/export/zip?strategyId=${strategyId}`}>Download ZIP</a>
-                  <a href={`/api/trades/export/pdf?strategyId=${strategyId}`}>Generate PDF</a>
+                  <a href={`/api/trades/export/csv?strategyId=${strat._id}`}>Export CSV</a>
+                  <a href={`/api/trades/export/zip?strategyId=${strat._id}`}>Download ZIP</a>
+                  <a href={`/api/trades/export/pdf?strategyId=${strat._id}`}>Generate PDF</a>
                 </div>
               </div>
             );
@@ -142,9 +150,9 @@ const PastTradesPage = () => {
                   ))}
                 </tr>
                 <tr>
-                  <td>Status</td>
+                  <td>Status / Trade Type</td>
                   {compareData.strategies.map((s) => (
-                    <td key={s._id}>{s.active ? "Active" : "Paused"}</td>
+                    <td key={s._id}>{s.active ? "Active" : "Paused"} ({s.tradeType})</td>
                   ))}
                 </tr>
               </tbody>

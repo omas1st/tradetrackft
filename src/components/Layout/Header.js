@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import NotificationBanner from "./NotificationBanner";
+import TradingRulesButton from "./TradingRulesButton";
 import "./Header.css";
 
 const Header = () => {
@@ -12,6 +13,7 @@ const Header = () => {
           <Link to="/">Home</Link>
         </nav>
         <div className="header-actions">
+          <TradingRulesButton />
           <NotificationBanner />
         </div>
       </div>
