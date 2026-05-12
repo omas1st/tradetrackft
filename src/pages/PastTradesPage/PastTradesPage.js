@@ -1,7 +1,11 @@
-import React, { useState, useContext, useEffect } from "react";
+import React, { useState, useContext, useEffect, useMemo } from "react";
 import { DataContext } from "../../context/DataContext";
 import * as api from "../../services/api";
 import "./PastTradesPage.css";
+
+const API_BASE = process.env.REACT_APP_API_URL;
+
+const tradeTypeOrder = { Live: 0, "Forward Test": 1, Demo: 2 };
 
 const PastTradesPage = () => {
   const { strategies } = useContext(DataContext);
@@ -11,34 +15,147 @@ const PastTradesPage = () => {
   const [compareData, setCompareData] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // sort strategies by trade type (Live > Forward Test > Demo) then by name
-  const tradeTypeOrder = { "Live": 0, "Forward Test": 1, "Demo": 2 };
-  const sortedStrategies = [...(strategies || [])].sort((a, b) => {
-    const aOrder = tradeTypeOrder[a.currentTradeType] ?? 3;
-    const bOrder = tradeTypeOrder[b.currentTradeType] ?? 3;
-    if (aOrder !== bOrder) return aOrder - bOrder;
-    return (a.name || "").localeCompare(b.name || "");
+  // Editing state
+  const [editTradeId, setEditTradeId] = useState(null);
+  const [editForm, setEditForm] = useState({
+    pair: "",
+    result: "Win",
+    date: "",
+    time: "08:00",
+    tradeType: "Live",
+    note: "",
+    existingStrategyId: null,
   });
+  const [editImageFile, setEditImageFile] = useState(null);
+  const [editError, setEditError] = useState("");
 
+  // Which strategies' trade lists are visible
+  const [visibleTrades, setVisibleTrades] = useState({});
+
+  const sortedStrategies = useMemo(() => {
+    if (!strategies || strategies.length === 0) return [];
+    return [...strategies].sort((a, b) => {
+      const aOrder = tradeTypeOrder[a.currentTradeType] ?? 3;
+      const bOrder = tradeTypeOrder[b.currentTradeType] ?? 3;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return (a.name || "").localeCompare(b.name || "");
+    });
+  }, [strategies]);
+
+  // Fetch trades in parallel when strategies or view changes
   useEffect(() => {
     if (view !== "folders") return;
+    if (!sortedStrategies || sortedStrategies.length === 0) return;
+
     const fetchAllTrades = async () => {
       setLoading(true);
-      const tradesMap = {};
-      for (const s of sortedStrategies) {
-        try {
-          const { data } = await api.getTrades({ strategyId: s._id });
-          tradesMap[s._id] = data;
-        } catch (error) {
-          console.error(`Failed to fetch trades for ${s.name}`, error);
-        }
+      try {
+        const promises = sortedStrategies.map(async (s) => {
+          try {
+            const { data } = await api.getTrades({ strategyId: s._id });
+            return { id: s._id, data };
+          } catch (error) {
+            console.error(`Failed fetching trades for ${s.name}`, error);
+            return { id: s._id, data: [] };
+          }
+        });
+        const results = await Promise.all(promises);
+        const tradesMap = {};
+        results.forEach(({ id, data }) => {
+          tradesMap[id] = data;
+        });
+        setStrategyTrades(tradesMap);
+      } catch (err) {
+        console.error("Unexpected error during trade fetch", err);
+      } finally {
+        setLoading(false);
       }
-      setStrategyTrades(tradesMap);
-      setLoading(false);
     };
+
     fetchAllTrades();
   }, [sortedStrategies, view]);
 
+  // Toggle visibility of a strategy's trade list
+  const toggleTradeList = (strategyId) => {
+    setVisibleTrades((prev) => ({
+      ...prev,
+      [strategyId]: !prev[strategyId],
+    }));
+  };
+
+  // ---- Edit handlers (unchanged) ----
+  const startEdit = (trade, strategyId) => {
+    setEditTradeId(trade._id);
+    setEditForm({
+      pair: trade.pair || "",
+      result: trade.result || "Win",
+      date: trade.date?.slice(0, 10) || "",
+      time: trade.time || "08:00",
+      tradeType: trade.tradeType || "Live",
+      note: trade.note || "",
+      existingStrategyId: strategyId,
+    });
+    setEditImageFile(null);
+    setEditError("");
+  };
+
+  const cancelEdit = () => {
+    setEditTradeId(null);
+    setEditError("");
+  };
+
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleEditFileChange = (e) => {
+    setEditImageFile(e.target.files[0] || null);
+  };
+
+  const submitEdit = async () => {
+    if (!editTradeId || !editForm.existingStrategyId) return;
+    setEditError("");
+    try {
+      const formData = new FormData();
+      formData.append("pair", editForm.pair);
+      formData.append("result", editForm.result);
+      formData.append("date", editForm.date);
+      formData.append("time", editForm.time);
+      formData.append("tradeType", editForm.tradeType);
+      formData.append("note", editForm.note);
+      if (editImageFile) {
+        formData.append("image", editImageFile);
+      }
+
+      await api.updateTrade(editTradeId, formData);
+      alert("Trade updated successfully");
+
+      const updatedMap = { ...strategyTrades };
+      const { data } = await api.getTrades({ strategyId: editForm.existingStrategyId });
+      updatedMap[editForm.existingStrategyId] = data;
+      setStrategyTrades(updatedMap);
+      setEditTradeId(null);
+    } catch (error) {
+      console.error("Update trade error:", error);
+      setEditError(error.response?.data?.message || "Failed to update trade");
+    }
+  };
+
+  const handleDelete = async (tradeId, strategyId) => {
+    if (!window.confirm("Delete this trade? This cannot be undone.")) return;
+    try {
+      await api.deleteTrade(tradeId);
+      alert("Trade deleted");
+      const { data } = await api.getTrades({ strategyId });
+      setStrategyTrades((prev) => ({ ...prev, [strategyId]: data }));
+    } catch (error) {
+      console.error("Delete trade error:", error);
+      alert("Failed to delete trade");
+    }
+  };
+
+  // Compare logic (unchanged)
   const handleCompare = async () => {
     if (compareIds.length < 2) return alert("Select at least 2 strategies to compare");
     setLoading(true);
@@ -80,23 +197,169 @@ const PastTradesPage = () => {
         <div className="folders">
           {sortedStrategies.map((strat) => {
             const trades = strategyTrades[strat._id] || [];
+            const listVisible = visibleTrades[strat._id] || false;
+
             return (
               <div key={strat._id} className="folder">
                 <h3>
-                  {strat.name} <span className="trade-type-badge">{strat.currentTradeType}</span>
+                  {strat.name}{" "}
+                  <span className="trade-type-badge">{strat.currentTradeType}</span>
                 </h3>
+
+                {/* Image row (always visible) */}
                 <div className="image-scroll-row">
                   {trades
                     .filter((t) => t.image)
                     .map((t, idx) => (
-                      <img key={idx} src={t.image} alt="trade setup" className="scroll-image" />
+                      <img
+                        key={idx}
+                        src={t.image}
+                        alt={`trade ${idx}`}
+                        className="scroll-image"
+                      />
                     ))}
+                  {trades.filter((t) => t.image).length === 0 && (
+                    <p className="no-images">No images yet</p>
+                  )}
                 </div>
+
+                {/* Trade list toggle button */}
+                <button
+                  className="toggle-trades-btn"
+                  onClick={() => toggleTradeList(strat._id)}
+                >
+                  {listVisible ? "Hide Trades" : "Show Trades"} ({trades.length})
+                </button>
+
+                {/* Trade list (visible when toggled) */}
+                {listVisible && (
+                  <div className="trades-list">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Pair</th>
+                          <th>Result</th>
+                          <th>Note</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {trades.map((trade) => (
+                          <tr key={trade._id}>
+                            <td>{new Date(trade.date).toLocaleDateString()}</td>
+                            <td>{trade.pair}</td>
+                            <td className={`result-${trade.result.toLowerCase()}`}>
+                              {trade.result}
+                            </td>
+                            <td>{trade.note || "-"}</td>
+                            <td>
+                              <button
+                                className="edit-btn"
+                                onClick={() => startEdit(trade, strat._id)}
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                className="delete-btn"
+                                onClick={() => handleDelete(trade._id, strat._id)}
+                              >
+                                🗑️
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Export links (fixed with images now) */}
                 <div className="actions">
-                  <a href={`/api/trades/export/csv?strategyId=${strat._id}`}>Export CSV</a>
-                  <a href={`/api/trades/export/zip?strategyId=${strat._id}`}>Download ZIP</a>
-                  <a href={`/api/trades/export/pdf?strategyId=${strat._id}`}>Generate PDF</a>
+                  <a href={`${API_BASE}/trades/export/csv?strategyId=${strat._id}`}>Export CSV</a>
+                  <a href={`${API_BASE}/trades/export/zip?strategyId=${strat._id}`}>Download ZIP</a>
+                  <a href={`${API_BASE}/trades/export/pdf?strategyId=${strat._id}`}>Generate PDF</a>
                 </div>
+
+                {/* Edit Trade Modal */}
+                {editTradeId && editForm.existingStrategyId === strat._id && (
+                  <div className="edit-trade-overlay" onClick={cancelEdit}>
+                    <div
+                      className="edit-trade-form"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <h4>Edit Trade</h4>
+                      {editError && <div className="error-message">{editError}</div>}
+                      <label>
+                        Pair:
+                        <input
+                          type="text"
+                          name="pair"
+                          value={editForm.pair}
+                          onChange={handleEditChange}
+                        />
+                      </label>
+                      <label>
+                        Result:
+                        <select
+                          name="result"
+                          value={editForm.result}
+                          onChange={handleEditChange}
+                        >
+                          <option value="Win">Win</option>
+                          <option value="Loss">Loss</option>
+                        </select>
+                      </label>
+                      <label>
+                        Date:
+                        <input
+                          type="date"
+                          name="date"
+                          value={editForm.date}
+                          onChange={handleEditChange}
+                        />
+                      </label>
+                      <label>
+                        Time:
+                        <input
+                          type="time"
+                          name="time"
+                          value={editForm.time}
+                          onChange={handleEditChange}
+                        />
+                      </label>
+                      <label>
+                        Trade Type:
+                        <select
+                          name="tradeType"
+                          value={editForm.tradeType}
+                          onChange={handleEditChange}
+                        >
+                          <option value="Live">Live</option>
+                          <option value="Demo">Demo</option>
+                          <option value="Forward Test">Forward Test</option>
+                        </select>
+                      </label>
+                      <label>
+                        Note:
+                        <textarea
+                          name="note"
+                          value={editForm.note}
+                          onChange={handleEditChange}
+                          rows={2}
+                        />
+                      </label>
+                      <label>
+                        Change Image (optional):
+                        <input type="file" accept="image/*" onChange={handleEditFileChange} />
+                      </label>
+                      <div className="form-buttons">
+                        <button onClick={submitEdit}>Save Changes</button>
+                        <button onClick={cancelEdit} className="cancel-btn">Cancel</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -152,7 +415,9 @@ const PastTradesPage = () => {
                 <tr>
                   <td>Status / Trade Type</td>
                   {compareData.strategies.map((s) => (
-                    <td key={s._id}>{s.active ? "Active" : "Paused"} ({s.tradeType})</td>
+                    <td key={s._id}>
+                      {s.active ? "Active" : "Paused"} ({s.tradeType})
+                    </td>
                   ))}
                 </tr>
               </tbody>

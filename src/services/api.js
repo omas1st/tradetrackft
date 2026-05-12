@@ -4,7 +4,7 @@ const API = axios.create({ baseURL: process.env.REACT_APP_API_URL });
 
 // Strategies
 export const getStrategies = () => API.get("/strategies");
-export const createStrategy = (formData) => API.post("/strategies", formData); // multipart if image
+export const createStrategy = (formData) => API.post("/strategies", formData);
 export const updateStrategy = (id, formData) => API.put(`/strategies/${id}`, formData);
 export const deleteStrategy = (id) => API.delete(`/strategies/${id}`);
 
@@ -14,6 +14,16 @@ export const getPairs = () => API.get("/pairs");
 // Trades
 export const recordTrade = (tradeData) => API.post("/trades", tradeData);
 export const getTrades = (params) => API.get("/trades", { params });
+
+// NEW: Update a trade (supports FormData for image upload)
+export const updateTrade = (id, tradeData) => {
+  const isFormData = tradeData instanceof FormData;
+  const headers = isFormData ? { "Content-Type": "multipart/form-data" } : {};
+  return API.put(`/trades/${id}`, tradeData, { headers });
+};
+
+// NEW: Delete a trade
+export const deleteTrade = (id) => API.delete(`/trades/${id}`);
 
 // Upload image (via backend)
 export const uploadImage = (file) => {
@@ -41,5 +51,5 @@ export const submitWeeklyReview = (answers) => API.post("/weekly-review", answer
 export const setDailyBias = (bias) => API.post("/daily-bias", { bias });
 export const getTodayBias = () => API.get("/daily-bias/today");
 
-// Notifications (we derive them from strategies / trades, but you can also get from backend)
+// Notifications
 export const getNotifications = () => API.get("/notifications");
