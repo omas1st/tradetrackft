@@ -15,6 +15,11 @@ const PastTradesPage = () => {
   const [compareData, setCompareData] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  // Compare period state
+  const [comparePeriod, setComparePeriod] = useState("30d");
+  const [compareStart, setCompareStart] = useState("");
+  const [compareEnd, setCompareEnd] = useState("");
+
   // Editing state
   const [editTradeId, setEditTradeId] = useState(null);
   const [editForm, setEditForm] = useState({
@@ -42,7 +47,7 @@ const PastTradesPage = () => {
     });
   }, [strategies]);
 
-  // Fetch trades in parallel when strategies or view changes
+  // Fetch trades in folders view
   useEffect(() => {
     if (view !== "folders") return;
     if (!sortedStrategies || sortedStrategies.length === 0) return;
@@ -83,7 +88,7 @@ const PastTradesPage = () => {
     }));
   };
 
-  // ---- Edit handlers (unchanged) ----
+  // ---- Edit handlers ----
   const startEdit = (trade, strategyId) => {
     setEditTradeId(trade._id);
     setEditForm({
@@ -155,19 +160,27 @@ const PastTradesPage = () => {
     }
   };
 
-  // Compare logic (unchanged)
+  // ---- Compare logic with period filter ----
   const handleCompare = async () => {
-    if (compareIds.length < 2) return alert("Select at least 2 strategies to compare");
+    if (compareIds.length < 2) return alert("Select at least 2 strategies");
     setLoading(true);
     try {
-      const { data } = await api.getAnalysisDecision({
-        period: "30d",
+      const params = {
+        period: comparePeriod,
         simulate: false,
         compareIds: compareIds.join(","),
-      });
+      };
+      if (comparePeriod === "custom") {
+        if (!compareStart || !compareEnd)
+          return alert("Please select start and end dates for custom period.");
+        params.start = compareStart;
+        params.end = compareEnd;
+      }
+      const { data } = await api.getAnalysisDecision(params);
       setCompareData(data);
     } catch (error) {
       console.error("Compare error", error);
+      alert("Failed to compare strategies");
     } finally {
       setLoading(false);
     }
@@ -178,6 +191,18 @@ const PastTradesPage = () => {
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
+
+  // Metric definitions for the row‑wise compare table
+  const compareMetrics = [
+    { label: "Trade Type", key: "tradeType" },
+    { label: "Total Trades", key: "totalTrades" },
+    { label: "Wins", key: "wins" },
+    { label: "Losses", key: "losses" },
+    { label: "Win Rate", key: "winRate", suffix: "%" },
+    { label: "Loss Rate", key: "lossRate", suffix: "%" },
+    { label: "Consec. Wins", key: "consecutiveWins" },
+    { label: "Last Trade", key: "lastTradeDaysAgo", fallback: "Never", suffix: " days ago" },
+  ];
 
   return (
     <div className="past-trades-page">
@@ -206,7 +231,6 @@ const PastTradesPage = () => {
                   <span className="trade-type-badge">{strat.currentTradeType}</span>
                 </h3>
 
-                {/* Image row (always visible) */}
                 <div className="image-scroll-row">
                   {trades
                     .filter((t) => t.image)
@@ -223,7 +247,6 @@ const PastTradesPage = () => {
                   )}
                 </div>
 
-                {/* Trade list toggle button */}
                 <button
                   className="toggle-trades-btn"
                   onClick={() => toggleTradeList(strat._id)}
@@ -231,7 +254,6 @@ const PastTradesPage = () => {
                   {listVisible ? "Hide Trades" : "Show Trades"} ({trades.length})
                 </button>
 
-                {/* Trade list (visible when toggled) */}
                 {listVisible && (
                   <div className="trades-list">
                     <table>
@@ -274,14 +296,13 @@ const PastTradesPage = () => {
                   </div>
                 )}
 
-                {/* Export links (fixed with images now) */}
                 <div className="actions">
                   <a href={`${API_BASE}/trades/export/csv?strategyId=${strat._id}`}>Export CSV</a>
                   <a href={`${API_BASE}/trades/export/zip?strategyId=${strat._id}`}>Download ZIP</a>
                   <a href={`${API_BASE}/trades/export/pdf?strategyId=${strat._id}`}>Generate PDF</a>
                 </div>
 
-                {/* Edit Trade Modal */}
+                {/* Edit Modal */}
                 {editTradeId && editForm.existingStrategyId === strat._id && (
                   <div className="edit-trade-overlay" onClick={cancelEdit}>
                     <div
@@ -381,47 +402,78 @@ const PastTradesPage = () => {
               </label>
             ))}
           </div>
+
+          {/* Period filter */}
+          <div className="compare-period-filter">
+            <label>
+              Period:
+              <select
+                value={comparePeriod}
+                onChange={(e) => setComparePeriod(e.target.value)}
+              >
+                <option value="3d">Last 3 Days</option>
+                <option value="7d">Last 7 Days</option>
+                <option value="30d">Last 30 Days</option>
+                <option value="60d">Last 60 Days</option>
+                <option value="100d">Last 100 Days</option>
+                <option value="365d">Last 365 Days</option>
+                <option value="custom">Custom Range</option>
+                <option value="">All Time</option>
+              </select>
+            </label>
+            {comparePeriod === "custom" && (
+              <div className="custom-dates">
+                <label>
+                  Start:
+                  <input
+                    type="date"
+                    value={compareStart}
+                    onChange={(e) => setCompareStart(e.target.value)}
+                  />
+                </label>
+                <label>
+                  End:
+                  <input
+                    type="date"
+                    value={compareEnd}
+                    onChange={(e) => setCompareEnd(e.target.value)}
+                  />
+                </label>
+              </div>
+            )}
+          </div>
+
           <button onClick={handleCompare}>Compare</button>
 
           {compareData && (
-            <table>
-              <thead>
-                <tr>
-                  <th>Metric</th>
-                  {compareData.strategies.map((s) => (
-                    <th key={s._id}>{s.name}</th>
+            <div className="compare-results">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Metric</th>
+                    {compareData.strategies.map((s) => (
+                      <th key={s._id}>{s.name}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {compareMetrics.map((metric) => (
+                    <tr key={metric.label}>
+                      <td>{metric.label}</td>
+                      {compareData.strategies.map((s) => {
+                        let value = s[metric.key];
+                        if (metric.key === "lastTradeDaysAgo") {
+                          value = value !== null ? `${value} days ago` : "Never";
+                        } else if (metric.suffix) {
+                          value = `${value}${metric.suffix}`;
+                        }
+                        return <td key={s._id}>{value}</td>;
+                      })}
+                    </tr>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Total Trades (30d)</td>
-                  {compareData.strategies.map((s) => (
-                    <td key={s._id}>{s.totalTrades}</td>
-                  ))}
-                </tr>
-                <tr>
-                  <td>Win Rate</td>
-                  {compareData.strategies.map((s) => (
-                    <td key={s._id}>{s.winRate}%</td>
-                  ))}
-                </tr>
-                <tr>
-                  <td>Consecutive Wins</td>
-                  {compareData.strategies.map((s) => (
-                    <td key={s._id}>{s.consecutiveWins}</td>
-                  ))}
-                </tr>
-                <tr>
-                  <td>Status / Trade Type</td>
-                  {compareData.strategies.map((s) => (
-                    <td key={s._id}>
-                      {s.active ? "Active" : "Paused"} ({s.tradeType})
-                    </td>
-                  ))}
-                </tr>
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
