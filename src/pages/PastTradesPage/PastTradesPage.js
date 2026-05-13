@@ -192,7 +192,7 @@ const PastTradesPage = () => {
     );
   };
 
-  // Metric definitions for the row‑wise compare table
+  // Metric definitions for the row‑wise compare table (includes new per-type rows)
   const compareMetrics = [
     { label: "Trade Type", key: "tradeType" },
     { label: "Total Trades", key: "totalTrades" },
@@ -202,7 +202,32 @@ const PastTradesPage = () => {
     { label: "Loss Rate", key: "lossRate", suffix: "%" },
     { label: "Consec. Wins", key: "consecutiveWins" },
     { label: "Last Trade", key: "lastTradeDaysAgo", fallback: "Never", suffix: " days ago" },
+    // ---- New per-type rows ----
+    { label: "Live Trades (Total)", key: "liveTotal" },
+    { label: "Live Wins", key: "liveWins" },
+    { label: "Live Losses", key: "liveLosses" },
+    { label: "Fwd Test Trades (Total)", key: "forwardTestTotal" },
+    { label: "Fwd Test Wins", key: "forwardTestWins" },
+    { label: "Fwd Test Losses", key: "forwardTestLosses" },
+    { label: "Demo Trades (Total)", key: "demoTotal" },
+    { label: "Demo Wins", key: "demoWins" },
+    { label: "Demo Losses", key: "demoLosses" },
   ];
+
+  // Helper to format metric value
+  const formatMetricValue = (s, metric) => {
+    let val = s[metric.key];
+    if (val === undefined || val === null) {
+      return metric.fallback || "0";
+    }
+    if (metric.key === "lastTradeDaysAgo") {
+      return val !== null ? `${val} days ago` : "Never";
+    }
+    if (metric.suffix) {
+      return `${val}${metric.suffix}`;
+    }
+    return val;
+  };
 
   return (
     <div className="past-trades-page">
@@ -460,15 +485,11 @@ const PastTradesPage = () => {
                   {compareMetrics.map((metric) => (
                     <tr key={metric.label}>
                       <td>{metric.label}</td>
-                      {compareData.strategies.map((s) => {
-                        let value = s[metric.key];
-                        if (metric.key === "lastTradeDaysAgo") {
-                          value = value !== null ? `${value} days ago` : "Never";
-                        } else if (metric.suffix) {
-                          value = `${value}${metric.suffix}`;
-                        }
-                        return <td key={s._id}>{value}</td>;
-                      })}
+                      {compareData.strategies.map((s) => (
+                        <td key={s._id}>
+                          {formatMetricValue(s, metric)}
+                        </td>
+                      ))}
                     </tr>
                   ))}
                 </tbody>
